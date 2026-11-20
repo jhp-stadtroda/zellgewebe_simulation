@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zellgewebe-Simulation: Protoonkogene &amp; Tumorsuppressorgene</title>
+    <style>
+        /* =====================================================================
+           DESIGN TOKENS & BASIS-LAYOUT (Helles wissenschaftliches Light-Mode-UI)
+           ===================================================================== */
+        :root {
+            --bg-app: #f1f5f9;
+            --bg-surface: #ffffff;
+            --bg-subtle: #f8fafc;
+            --bg-hover: #f1f5f9;
+            --border-subtle: #cbd5e1;
+            --border-strong: #94a3b8;
+
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+
+            --healthy-main: #2563eb;
+            --healthy-soft: #eff6ff;
+            --healthy-border: #93c5fd;
+
+            --mutated-main: #dc2626;
+            --mutated-soft: #fef2f2;
+            --mutated-border: #fca5a5;
+
+            --ok-bg: #ecfdf5;
+            --ok-text: #047857;
+            --ok-border: #a7f3d0;
+
+            --bad-bg: #fef2f2;
+            --bad-text: #b91c1c;
+            --bad-border: #fecaca;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-app);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* =====================================================================
+           KOPFBEREICH: TITEL, 4 SZENARIO-TABS & ERKLÄRUNGSBANNER
+           ===================================================================== */
+        header {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 12px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 1px 6px rgba(15, 23, 42, 0.05);
+            z-index: 20;
+        }
+
+        .header-top {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--healthy-soft);
+            border: 1px solid var(--healthy-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .brand h1 {
+            font-size: 1.08rem;
+            font-weight: 700;
+            letter-spacing: -0.015em;
+            color: var(--text-primary);
+        }
+
+        .brand p {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        /* 4 Szenario-Tabs */
+        .variant-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        @media (max-width: 1080px) {
+            .variant-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 580px) {
+            .variant-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .variant-btn {
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 8px 11px;
+            color: var(--text-primary);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.16s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .variant-btn:hover {
+            background: var(--bg-surface);
+            border-color: var(--border-strong);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+        }
+
+        .variant-btn.active {
+            background: var(--bg-surface);
+            border-color: var(--healthy-main);
+            box-shadow: 0 0 0 1.5px var(--healthy-main), 0 4px 12px rgba(37, 99, 235, 0.12);
+        }
+
+        .variant-btn.active.critical {
+            border-color: var(--mutated-main);
+            box-shadow: 0 0 0 1.5px var(--mutated-main), 0 4px 12px rgba(220, 38, 38, 0.12);
+        }
+
+        .variant-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .variant-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .variant-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 1px 7px;
+            border-radius: 5px;
+            background: #e2e8f0;
+            color: var(--text-secondary);
+        }
+
+        .variant-btn.active .variant-badge {
+            background: var(--healthy-main);
+            color: #ffffff;
+        }
+
+        .variant-btn.active.critical .variant-badge {
+            background: var(--mutated-main);
+            color: #ffffff;
+        }
+
+        .gene-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .tag {
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 5px;
+        }
+
+        .tag.ok {
+            background: var(--ok-bg);
+            color: var(--ok-text);
+            border: 1px solid var(--ok-border);
+        }
+
+        .tag.bad {
+            background: var(--bad-bg);
+            color: var(--bad-text);
+            border: 1px solid var(--bad-border);
+        }
+
+        /* 1-zeiliges biologisches Erklärungsbanner unter den Tabs */
+        .scenario-banner {
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-subtle);
+            border-left: 3.5px solid var(--healthy-main);
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 0.81rem;
+            color: var(--text-primary);
+            line-height: 1.35;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scenario-banner.critical {
+            border-left-color: var(--mutated-main);
+            background: #fffafa;
+        }
+
+        /* =====================================================================
+           ZENTRALER HELLFELD-MIKROSKOP-VIEWPORT
+           ===================================================================== */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 12px 22px;
+            max-width: 1560px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 640px) {
+            main {
+                padding: 10px 12px;
+            }
+        }
+
+        .microscope-stage {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            min-height: 410px;
+            background: #fafbfc;
+            border-radius: 14px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08), inset 0 0 36px rgba(148, 163, 184, 0.18);
+            overflow: hidden;
+        }
+
+        canvas#tissueCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Dezenter Hellfeld-Maßstabsbalken (50 µm) */
+        .scale-hud {
+            position: absolute;
+            bottom: 12px;
+            right: 14px;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(4px);
+            padding: 5px 9px;
+            border-radius: 7px;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+        }
+
+        .scale-bar {
+            width: 68px;
+            height: 5px;
+            border-left: 2px solid #0f172a;
+            border-right: 2px solid #0f172a;
+            border-bottom: 2px solid #0f172a;
+        }
+
+        .scale-label {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.68rem;
+            color: #0f172a;
+            font-weight: 700;
+        }
+
+        /* =====================================================================
+           SCHLICHTE FUSSZEILE (BUTTONS, LEGENDE, LIVE-ZÄHLER & KLICK-HINWEIS)
+           ===================================================================== */
+        footer {
+            background-color: var(--bg-surface);
+            border-top: 1px solid var(--border-subtle);
+            padding: 10px 22px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .footer-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 8px 13px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-strong);
+        }
+
+        .btn.primary {
+            background: var(--healthy-main);
+            border-color: var(--healthy-main);
+            color: #ffffff;
+        }
+
+        .btn.primary:hover {
+            background: #1d4ed8;
+        }
+
+        .footer-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-entry {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .dot.healthy {
+            background: #3b82f6;
+            border: 1.5px solid #1d4ed8;
+        }
+
+        .dot.mutated {
+            background: #ef4444;
+            border: 1.5px solid #b91c1c;
+        }
+
+        /* Live-Zellzahl-Badge */
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-subtle);
+            border-radius: 999px;
+            padding: 5px 13px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .count-badge strong.blue {
+            color: var(--healthy-main);
+            font-weight: 800;
+        }
+
+        .count-badge strong.red {
+            color: var(--mutated-main);
+            font-weight: 800;
+        }
+
+        .footer-hint {
+            font-size: 0.79rem;
+            color: var(--text-primary);
+            background: var(--healthy-soft);
+            border: 1px solid var(--healthy-border);
+            padding: 6px 11px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =========================================================================
+         KOPFBEREICH MIT TITEL, 4 SZENARIO-TABS & 1-ZEILIGEM ERKLÄRUNGSBANNER
+         ========================================================================= -->
+    <header>
+        <div class="header-top">
+            <div class="brand">
+                <div class="brand-icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9" stroke-opacity="0.45"/>
+                        <circle cx="12" cy="12" r="4" fill="rgba(37,99,235,0.22)"/>
+                        <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1>Zellgewebe-Simulation: Protoonkogene &amp; Tumorsuppressorgene</h1>
+                    <p>Hellfeld-Mikroskopie (~100 Epithelzellen) · Interaktive Zellzyklus-Regulation</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 Szenario-Tabs -->
+        <nav class="variant-grid" id="variantSelector" aria-label="Varianten-Auswahl">
+            <button class="variant-btn active" data-variant="1">
+                <div class="variant-header">
+                    <span class="variant-title">Variante 1</span>
+                    <span class="variant-badge">Normal</span>
+                </div>
+                <div class="gene-tags">
+                    <span class="tag ok">Protoonkogene intakt</span>
+                    <span class="tag ok">Tumorsuppressorgene intakt</span>
+                </div>
+            </button>
+
+            <button class="variant-btn" data-variant="2">
+                <div class="variant-header">
+                    <span class="variant-title">Variante 2</span>
+                    <span class="variant-badge">Onkogen</span>
+                </div>
+                <div class="gene-tags">
+                    <span class="tag bad">Protoonkogene gestört</span>
+                    <span class="tag ok">Tumorsuppressorgene intakt</span>
+                </div>
+            </button>
+
+            <button class="variant-btn" data-variant="3">
+                <div class="variant-header">
+                    <span class="variant-title">Variante 3</span>
+                    <span class="variant-badge">Bremse defekt</span>
+                </div>
+                <div class="gene-tags">
+                    <span class="tag ok">Protoonkogene intakt</span>
+                    <span class="tag bad">Tumorsuppressorgene gestört</span>
+                </div>
+            </button>
+
+            <button class="variant-btn" data-variant="4">
+                <div class="variant-header">
+                    <span class="variant-title">Variante 4</span>
+                    <span class="variant-badge">Tumor</span>
+                </div>
+                <div class="gene-tags">
+                    <span class="tag bad">Protoonkogene gestört</span>
+                    <span class="tag bad">Tumorsuppressorgene gestört</span>
+                </div>
+            </button>
+        </nav>
+
+        <!-- 1-zeiliges Erklärungsbanner zum aktiven Szenario -->
+        <div class="scenario-banner" id="scenarioBanner" role="status" aria-live="polite">
+            <span id="scenarioBannerText">
+                Normalzustand: Gesunde Zellen teilen sich und sterben im Gleichgewicht; mutierte Zellen werden sofort gestoppt und abgebaut.
+            </span>
+        </div>
+    </header>
+
+    <!-- =========================================================================
+         ZENTRALER HELLFELD-MIKROSKOP-VIEWPORT
+         ========================================================================= -->
+    <main>
+        <section class="microscope-stage" aria-label="Hellfeld-Mikroskop-Ansicht">
+            <canvas id="tissueCanvas"></canvas>
+
+            <div class="scale-hud" aria-hidden="true">
+                <div class="scale-bar"></div>
+                <span class="scale-label">50 µm</span>
+            </div>
+        </section>
+    </main>
+
+    <!-- =========================================================================
+         FUSSZEILE: PAUSE/FORTSETZEN, ZURÜCKSETZEN, LEGENDE, LIVE-ZÄHLER & HINWEIS
+         ========================================================================= -->
+    <footer>
+        <div class="footer-actions">
+            <button class="btn primary" id="btnPlayPause">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" id="iconPlayPause">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+                <span id="labelPlayPause">Pause</span>
+            </button>
+
+            <button class="btn" id="btnReset">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+                </svg>
+                <span>Zurücksetzen</span>
+            </button>
+        </div>
+
+        <div class="footer-legend">
+            <div class="legend-entry">
+                <span class="dot healthy"></span>
+                <span>Blau = Gesunde Zelle</span>
+            </div>
+            <div class="legend-entry">
+                <span class="dot mutated"></span>
+                <span>Rot = Mutierte Zelle</span>
+            </div>
+        </div>
+
+        <div class="count-badge" aria-label="Aktuelle Zellzahlen">
+            <span>Gesund: <strong class="blue" id="healthyCount">100</strong></span>
+            <span>·</span>
+            <span>Mutiert: <strong class="red" id="mutatedCount">0</strong></span>
+        </div>
+
+        <div class="footer-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 9l5 12 1.8-5.2L21 14z"/><path d="M7.2 2.2L8 5.1"/><path d="M5.1 8l-2.9-.8"/><path d="M14 4.1L12 6"/><path d="M6 12l-1.9 2"/>
+            </svg>
+            <span>Klicke auf eine gesunde Zelle, um eine Mutation auszulösen</span>
+        </div>
+    </footer>
+
+    <!-- =========================================================================
+         SIMULATIONS-ENGINE (HELLFELD-OPTIK, VORONOI-GEWEBE & ZELLZYKLUS)
+         ========================================================================= -->
+    <script>
+        // Sim_Config
+        const SIM_CONFIG = {
+            targetCellCount: 100,
+            healthy: {
+                baseLifetimeSec: 45.0,       // Standard-Lebensdauer gesunder Zellen (Sekunden)
+                lifetimeJitter: 0.25,        // Zufällige Streuung (+/- 25%)
+                minDivisionCooldownSec: 2.0, // Mindestabstand zwischen Zellteilungen
+                divisionProbability: 0.1    // Teilungswahrscheinlichkeit bei Platzangebot
+            },
+            scenarios: {
+                v1: {
+                    // Protoonkogene intakt, Tumorsuppressorgene intakt
+                    mutatedLifetimeSec: 1.6,          // Schnelle Apoptose erkannter Mutationen
+                    mutatedLifetimeOffsetSec: 0.35,   // Zufälliger Offset
+                    mutatedDivisionIntervalSec: 999,  // Keine Teilung (Zellzyklus-Arrest)
+                    mutatedProliferationFactor: 0.0
+                },
+                v2: {
+                    // Protoonkogene gestört (daueraktiv), Tumorsuppressorgene intakt
+                    // Standard-Lebenszeit gegenüber Ursprungswert (7.5s) um 70% reduziert -> 2.25s + zufälliger Offset
+                    mutatedLifetimeSec: 2.75,
+                    mutatedLifetimeOffsetSec: 4.0,
+                    mutatedDivisionIntervalSec: 0.72, // Sehr schnelle Teilung zu kleinen Klumpen
+                    mutatedProliferationFactor: 1.0
+                },
+                v3: {
+                    // Protoonkogene intakt, Tumorsuppressorgene gestört
+                    // Mutierte Zellen sterben ca. 20% schneller als gesunde (22.0s * 0.8 = 17.6s)
+                    mutatedLifetimeSec: 17.6,
+                    mutatedLifetimeOffsetSec: 3.5,
+                    mutatedDivisionIntervalSec: 5.5,  // Langsame, seltene Teilung
+                    mutatedProliferationFactor: 0.35
+                },
+                v4: {
+                    // Protoonkogene gestört, Tumorsuppressorgene gestört
+                    mutatedLifetimeSec: Infinity,     // Kein Zelltod (Apoptose-Resistenz)
+                    mutatedLifetimeOffsetSec: 0,
+                    mutatedDivisionIntervalSec: 1.15, // Schnelle, unkontrollierte Teilung -> große Klumpen dominieren
+                    mutatedProliferationFactor: 1.0
+                }
+            }
+        };
+
+        (function () {
+            "use strict";
+
+            /* -----------------------------------------------------------------
+               1. SZENARIO-TEXTE & KONSTANTEN
+               ----------------------------------------------------------------- */
+            const SCENARIO_TEXTS = {
+                1: "Normalzustand: Gesunde Zellen teilen sich und sterben im Gleichgewicht; vereinzelte mutierte Zellen werden sofort gestoppt und abgebaut.",
+                2: "Onkogen-Aktivierung: Mutierte Zellen teilen sich rasch zu kleinen Klumpen, sterben aber durch die intakte Bremse zeitversetzt und schnell wieder ab.",
+                3: "Fehlende Zellzyklus-Bremse: Mutierte Zellen teilen sich nur langsam und selten und sterben wegen degeneriertem Erbgut ca. 20 % schneller ab.",
+                4: "Kontrollverlust (Tumor): Mutierte Zellen teilen sich ungebremst, sterben nicht ab und verdrängen schließlich das gesamte gesunde Gewebe."
+            };
+
+            const MAX_TOTAL_CELLS = 175;
+            const APOPTOSIS_DURATION_SEC = 0.62;
+            const MITOSIS_DURATION_HEALTHY_SEC = 1.05;
+            const MITOSIS_DURATION_FAST_SEC = 0.68;
+
+            /* -----------------------------------------------------------------
+               2. DOM-REFERENZEN & ZUSTAND
+               ----------------------------------------------------------------- */
+            const tissueCanvas = document.getElementById("tissueCanvas");
+            const ctx = tissueCanvas.getContext("2d");
+
+            const healthyCountEl = document.getElementById("healthyCount");
+            const mutatedCountEl = document.getElementById("mutatedCount");
+            const scenarioBannerEl = document.getElementById("scenarioBanner");
+            const scenarioBannerTextEl = document.getElementById("scenarioBannerText");
+
+            const btnPlayPause = document.getElementById("btnPlayPause");
+            const labelPlayPause = document.getElementById("labelPlayPause");
+            const iconPlayPause = document.getElementById("iconPlayPause");
+            const btnReset = document.getElementById("btnReset");
+
+            let currentVariant = 1;
+            let isRunning = true;
+
+            let viewWidth = 960;
+            let viewHeight = 540;
+            let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+            let cells = [];
+            let clickRipples = [];
+            let nextCellId = 1;
+            let nextClusterId = 1;
+            let baseRadius = 26;
+
+            let homeostasisTimer = 0;
+            let uiUpdateTimer = 0;
+            let hoveredCellId = null;
+
+            /* -----------------------------------------------------------------
+               3. HILFSFUNKTIONEN & VORONOI-HALBEBENEN-CLIPPING
+               ----------------------------------------------------------------- */
+            function rand(min, max) {
+                return min + Math.random() * (max - min);
+            }
+
+            function clamp(val, min, max) {
+                return Math.max(min, Math.min(max, val));
+            }
+
+            function getActiveScenarioConfig() {
+                return SIM_CONFIG.scenarios[`v${currentVariant}`];
+            }
+
+            function sampleHealthyLifetime() {
+                const base = SIM_CONFIG.healthy.baseLifetimeSec;
+                const jitter = SIM_CONFIG.healthy.lifetimeJitter;
+                return base * (1 + rand(-jitter, jitter));
+            }
+
+            function createInitialPolygon(cx, cy, radius) {
+                const sides = 16;
+                const poly = new Array(sides);
+                for (let i = 0; i < sides; i++) {
+                    const angle = (i / sides) * Math.PI * 2;
+                    poly[i] = {
+                        x: cx + Math.cos(angle) * radius,
+                        y: cy + Math.sin(angle) * radius
+                    };
+                }
+                return poly;
+            }
+
+            function clipPolygonHalfPlane(poly, mx, my, nx, ny) {
+                const len = poly.length;
+                if (len === 0) return poly;
+
+                const out = [];
+                let prev = poly[len - 1];
+                let prevDist = (prev.x - mx) * nx + (prev.y - my) * ny;
+
+                for (let i = 0; i < len; i++) {
+                    const curr = poly[i];
+                    const currDist = (curr.x - mx) * nx + (curr.y - my) * ny;
+
+                    if (currDist <= 0) {
+                        if (prevDist > 0) {
+                            const t = prevDist / (prevDist - currDist);
+                            out.push({
+                                x: prev.x + (curr.x - prev.x) * t,
+                                y: prev.y + (curr.y - prev.y) * t
+                            });
+                        }
+                        out.push(curr);
+                    } else if (prevDist <= 0) {
+                        const t = prevDist / (prevDist - currDist);
+                        out.push({
+                            x: prev.x + (curr.x - prev.x) * t,
+                            y: prev.y + (curr.y - prev.y) * t
+                        });
+                    }
+
+                    prev = curr;
+                    prevDist = currDist;
+                }
+                return out;
+            }
+
+            /* -----------------------------------------------------------------
+               4. ZELL-ERZEUGUNG & PARAMETRIERUNG AUS SIM_CONFIG
+               ----------------------------------------------------------------- */
+            function assignMutatedParameters(cell, isNewlyMutated = false) {
+                const cfg = getActiveScenarioConfig();
+                cell.age = 0;
+
+                if (!Number.isFinite(cfg.mutatedLifetimeSec)) {
+                    // Variante 4: Apoptose-Resistenz
+                    cell.maxLifespan = Infinity;
+                } else if (currentVariant === 2) {
+                    // Variante 2: 70% reduzierte Lebensdauer (2.25s +/- 0.65s), Tochterzellen erhalten
+                    // eine gestaffelte kurze Lebenszeit (~1.6s-2.6s), damit kleine Klumpen entstehen
+                    // und danach zeitlich versetzt (nie alle gleichzeitig) ausblassen.
+                    const genFactor = Math.pow(0.84, cell.generation);
+                    const baseLife = isNewlyMutated
+                        ? cfg.mutatedLifetimeSec
+                        : clamp(cfg.mutatedLifetimeSec * genFactor, 1.55, 2.35);
+                    const offset = cfg.mutatedLifetimeOffsetSec * genFactor;
+                    cell.maxLifespan = Math.max(1.1, baseLife + rand(-offset, offset));
+                } else {
+                    cell.maxLifespan = Math.max(
+                        0.6,
+                        cfg.mutatedLifetimeSec + rand(-cfg.mutatedLifetimeOffsetSec, cfg.mutatedLifetimeOffsetSec)
+                    );
+                }
+
+                if (cfg.mutatedProliferationFactor <= 0 || cfg.mutatedDivisionIntervalSec >= 500) {
+                    cell.divisionCooldown = 9999;
+                } else {
+                    const baseInterval = cfg.mutatedDivisionIntervalSec / Math.max(0.15, cfg.mutatedProliferationFactor);
+                    // In Variante 2 verlangsamt sich die Teilung nach 2-3 Generationen leicht,
+                    // damit der Klumpen begrenzt bleibt und die Apoptose ihn sauber abräumt.
+                    const genSlowdown = currentVariant === 2 ? Math.pow(1.28, cell.generation) : 1.0;
+                    const jitterFactor = isNewlyMutated ? rand(0.65, 0.95) : rand(0.8, 1.25);
+                    cell.divisionCooldown = baseInterval * genSlowdown * jitterFactor;
+                }
+            }
+
+            function createCell(x, y, state = "healthy", clusterId = 0, initialScale = 1.0, initialAge = 0, generation = 0) {
+                // Zytoplasma-Granula
+                const organelleCount = 6 + Math.floor(Math.random() * 5);
+                const organelles = [];
+                for (let i = 0; i < organelleCount; i++) {
+                    organelles.push({
+                        ang: rand(0, Math.PI * 2),
+                        dist: rand(0.32, 0.74),
+                        size: rand(1.0, 2.0),
+                        alpha: rand(0.14, 0.28)
+                    });
+                }
+
+                // Feine Chromatin-Granula im Zellkern
+                const chromatin = [];
+                for (let c = 0; c < 6; c++) {
+                    chromatin.push({
+                        ang: rand(0, Math.PI * 2),
+                        dist: rand(0.18, 0.65),
+                        size: rand(0.7, 1.25)
+                    });
+                }
+
+                // Leichte Unregelmäßigkeit für hyperchromatische Tumorzellkerne
+                const nucLobes = [];
+                for (let k = 0; k < 8; k++) {
+                    nucLobes.push(rand(0.88, 1.13));
+                }
+
+                const cell = {
+                    id: nextCellId++,
+                    x,
+                    y,
+                    vx: 0,
+                    vy: 0,
+                    state, // "healthy" | "mutated"
+                    clusterId,
+                    generation,
+                    phase: "interphase", // "interphase" | "mitosis" | "apoptosis"
+                    phaseProgress: 0,
+                    divAngle: rand(0, Math.PI * 2),
+                    scale: initialScale,
+                    targetScale: 1.0,
+                    alpha: 1.0,
+                    age: initialAge,
+                    maxLifespan: sampleHealthyLifetime(),
+                    divisionCooldown: rand(
+                        SIM_CONFIG.healthy.minDivisionCooldownSec,
+                        SIM_CONFIG.healthy.minDivisionCooldownSec * 3.0
+                    ),
+                    wobblePhase: rand(0, Math.PI * 2),
+                    wobbleSpeed: rand(1.4, 2.4),
+                    membranePhase: rand(0, Math.PI * 2),
+                    organelles,
+                    chromatin,
+                    nucLobes,
+                    polygon: []
+                };
+
+                if (state === "mutated") {
+                    assignMutatedParameters(cell, false);
+                }
+
+                return cell;
+            }
+
+            function initTissue() {
+                cells = [];
+                clickRipples = [];
+                nextCellId = 1;
+                nextClusterId = 1;
+                homeostasisTimer = 0;
+                uiUpdateTimer = 0;
+
+                const targetCount = SIM_CONFIG.targetCellCount;
+                const margin = 20;
+                const usableW = Math.max(260, viewWidth - margin * 2);
+                const usableH = Math.max(220, viewHeight - margin * 2);
+                const area = usableW * usableH;
+
+                baseRadius = clamp(
+                    Math.sqrt(area / (targetCount * Math.PI)) * 0.94,
+                    16,
+                    36
+                );
+
+                const cols = Math.round(Math.sqrt(targetCount * (usableW / usableH)));
+                const rows = Math.ceil(targetCount / cols);
+                const stepX = usableW / cols;
+                const stepY = usableH / rows;
+
+                let created = 0;
+                for (let r = 0; r < rows && created < targetCount; r++) {
+                    for (let c = 0; c < cols && created < targetCount; c++) {
+                        const hexOffset = r % 2 === 1 ? stepX * 0.25 : -stepX * 0.25;
+                        const px = clamp(
+                            margin + (c + 0.5) * stepX + hexOffset + rand(-stepX * 0.22, stepX * 0.22),
+                            margin,
+                            viewWidth - margin
+                        );
+                        const py = clamp(
+                            margin + (r + 0.5) * stepY + rand(-stepY * 0.22, stepY * 0.22),
+                            margin,
+                            viewHeight - margin
+                        );
+                        const startAge = rand(0, SIM_CONFIG.healthy.baseLifetimeSec * 0.85);
+                        cells.push(createCell(px, py, "healthy", 0, 1.0, startAge, 0));
+                        created++;
+                    }
+                }
+
+                // Vor-Relaxation für dicht gepacktes Epithelgewebe
+                for (let step = 0; step < 65; step++) {
+                    stepPhysics(0.016, true);
+                }
+
+                computeVoronoiCells();
+                updateCountersUI();
+            }
+
+            /* -----------------------------------------------------------------
+               5. KLICK-MUTATION & ZELLZYKLUS-DYNAMIK
+               ----------------------------------------------------------------- */
+            function mutateCellOnClick(cell, clickX, clickY) {
+                if (!cell || cell.state !== "healthy" || cell.phase === "apoptosis") return false;
+
+                cell.state = "mutated";
+                cell.clusterId = nextClusterId++;
+                cell.generation = 0;
+                cell.phase = "interphase";
+                cell.phaseProgress = 0;
+                assignMutatedParameters(cell, true);
+
+                // Dezenter roter Klick-Ring an der Klickposition
+                clickRipples.push({
+                    x: clickX,
+                    y: clickY,
+                    radius: 5,
+                    maxRadius: baseRadius * 1.85,
+                    alpha: 0.85
+                });
+
+                return true;
+            }
+
+            function startMitosis(cell) {
+                if (cell.phase !== "interphase") return;
+                cell.phase = "mitosis";
+                cell.phaseProgress = 0;
+                cell.divAngle = rand(0, Math.PI * 2);
+            }
+
+            function startApoptosis(cell) {
+                if (cell.phase === "apoptosis") return;
+                cell.phase = "apoptosis";
+                cell.phaseProgress = 0;
+            }
+
+            function updateBiology(dt) {
+                let mutatedCount = 0;
+                for (let i = 0; i < cells.length; i++) {
+                    if (cells[i].state === "mutated" && cells[i].phase !== "apoptosis") {
+                        mutatedCount++;
+                    }
+                }
+
+                for (let i = 0; i < cells.length; i++) {
+                    const c = cells[i];
+                    c.age += dt;
+                    c.wobblePhase += dt * c.wobbleSpeed;
+                    c.membranePhase += dt * 1.35;
+
+                    // Sanftes Heranwachsen junger Tochterzellen
+                    if (c.phase === "interphase" && c.scale < c.targetScale) {
+                        c.scale = Math.min(c.targetScale, c.scale + dt * 0.95);
+                    }
+
+                    // --- ZELLZYKLUS-PHASEN ---
+                    if (c.phase === "mitosis") {
+                        const mitosisDuration =
+                            c.state === "mutated" && (currentVariant === 2 || currentVariant === 4)
+                                ? MITOSIS_DURATION_FAST_SEC
+                                : MITOSIS_DURATION_HEALTHY_SEC;
+                        c.phaseProgress += dt / mitosisDuration;
+
+                        // Leichtes Anschwellen vor der Teilung
+                        c.scale = 1.0 + Math.sin(c.phaseProgress * Math.PI) * 0.14;
+
+                        if (c.phaseProgress >= 1.0) {
+                            // Zellteilung abschließen -> zwei Tochterzellen
+                            c.phase = "interphase";
+                            c.phaseProgress = 0;
+                            c.scale = 0.80;
+                            c.age = 0;
+
+                            const nextGen = c.generation + 1;
+                            c.generation = nextGen;
+
+                            const offset = baseRadius * 0.28;
+                            const dx = Math.cos(c.divAngle) * offset;
+                            const dy = Math.sin(c.divAngle) * offset;
+
+                            const daughter = createCell(
+                                clamp(c.x + dx, 16, viewWidth - 16),
+                                clamp(c.y + dy, 16, viewHeight - 16),
+                                c.state,
+                                c.clusterId,
+                                0.80,
+                                0,
+                                nextGen
+                            );
+                            c.x = clamp(c.x - dx, 16, viewWidth - 16);
+                            c.y = clamp(c.y - dy, 16, viewHeight - 16);
+
+                            if (c.state === "healthy") {
+                                c.maxLifespan = sampleHealthyLifetime();
+                                c.divisionCooldown = rand(
+                                    SIM_CONFIG.healthy.minDivisionCooldownSec,
+                                    SIM_CONFIG.healthy.minDivisionCooldownSec * 3.0
+                                );
+                            } else {
+                                assignMutatedParameters(c, false);
+                                assignMutatedParameters(daughter, false);
+                            }
+
+                            cells.push(daughter);
+                        }
+                    } else if (c.phase === "apoptosis") {
+                        // Sanftes Schrumpfen und Ausblassen über ~0.62s ohne Text-Popups
+                        c.phaseProgress += dt / APOPTOSIS_DURATION_SEC;
+                        c.scale = Math.max(0.10, 1.0 - c.phaseProgress * 0.90);
+                        c.alpha = Math.max(0, 1.0 - Math.pow(c.phaseProgress, 1.1));
+                    } else {
+                        // --- INTERPHASE: LEBENSDAUER & TEILUNG ---
+                        if (c.state === "healthy") {
+                            c.divisionCooldown = Math.max(0, c.divisionCooldown - dt);
+                            if (c.age >= c.maxLifespan) {
+                                startApoptosis(c);
+                            }
+                        } else {
+                            // Mutierte rote Zellen
+                            if (Number.isFinite(c.maxLifespan) && c.age >= c.maxLifespan) {
+                                startApoptosis(c);
+                            } else if (c.divisionCooldown < 500) {
+                                c.divisionCooldown -= dt;
+                                const maxCellsForScenario = currentVariant === 3 ? 130 : MAX_TOTAL_CELLS;
+                                if (c.divisionCooldown <= 0 && cells.length < maxCellsForScenario) {
+                                    startMitosis(c);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Abgestorbene Zellen entfernen
+                cells = cells.filter((c) => !(c.phase === "apoptosis" && c.phaseProgress >= 1.0));
+
+                // --- HOMÖOSTASE DER GESUNDEN BLAUEN ZELLEN ---
+                homeostasisTimer -= dt;
+                if (homeostasisTimer <= 0) {
+                    homeostasisTimer = 0.25;
+
+                    const activeHealthy = cells.filter(
+                        (c) => c.state === "healthy" && c.phase !== "apoptosis"
+                    );
+                    const totalActive = cells.filter((c) => c.phase !== "apoptosis").length;
+                    const targetCount = SIM_CONFIG.targetCellCount;
+
+                    // In Variante 1-3 bleibt das gesunde Gewebe bei ~100 Zellen im Gleichgewicht.
+                    // In Variante 4 verdrängen wachsende rote Tumor-Klumpen die gesunden Zellen.
+                    const desiredHealthy =
+                        currentVariant === 4
+                            ? Math.max(0, targetCount - mutatedCount)
+                            : targetCount;
+
+                    if (activeHealthy.length < desiredHealthy && totalActive < MAX_TOTAL_CELLS) {
+                        const needed = Math.min(3, desiredHealthy - activeHealthy.length);
+                        const readyCandidates = activeHealthy.filter(
+                            (c) => c.phase === "interphase" && c.divisionCooldown <= 0
+                        );
+                        const pool =
+                            readyCandidates.length > 0
+                                ? readyCandidates
+                                : activeHealthy.filter((c) => c.phase === "interphase");
+
+                        for (let k = 0; k < needed && pool.length > 0; k++) {
+                            if (Math.random() <= SIM_CONFIG.healthy.divisionProbability || activeHealthy.length < desiredHealthy - 2) {
+                                const idx = Math.floor(Math.random() * pool.length);
+                                startMitosis(pool[idx]);
+                                pool.splice(idx, 1);
+                            }
+                        }
+                    } else if (
+                        activeHealthy.length > desiredHealthy + 1 ||
+                        (currentVariant === 4 && totalActive > 116 && activeHealthy.length > 0)
+                    ) {
+                        const candidates = activeHealthy.filter((c) => c.phase === "interphase");
+                        if (candidates.length > 0) {
+                            candidates.sort((a, b) => b.age - a.age);
+                            startApoptosis(candidates[0]);
+                        }
+                    }
+                }
+
+                // Klick-Ripples aktualisieren
+                for (let i = clickRipples.length - 1; i >= 0; i--) {
+                    const r = clickRipples[i];
+                    r.radius += (r.maxRadius - r.radius) * 8.0 * dt + 26 * dt;
+                    r.alpha -= dt * 1.75;
+                    if (r.alpha <= 0) {
+                        clickRipples.splice(i, 1);
+                    }
+                }
+            }
+
+            /* -----------------------------------------------------------------
+               6. SOFT-BODY-FEDERPHYSIK & VORONOI-ZELLPOLYGONE
+               ----------------------------------------------------------------- */
+            function stepPhysics(dt, isPreRelax = false) {
+                const n = cells.length;
+                if (n === 0) return;
+
+                const effectiveCount = Math.max(95, n);
+                const usableArea = Math.max(10000, (viewWidth - 24) * (viewHeight - 24));
+                const dynamicRadius = clamp(
+                    Math.sqrt(usableArea / (effectiveCount * Math.PI)) * 0.95,
+                    14,
+                    36
+                );
+                baseRadius = baseRadius * 0.9 + dynamicRadius * 0.1;
+
+                const minDistBase = baseRadius * 1.92;
+                const repulsionStiffness = isPreRelax ? 14.0 : 11.5;
+                const damping = isPreRelax ? 0.72 : 0.78;
+
+                for (let i = 0; i < n; i++) {
+                    const a = cells[i];
+                    const weightA = a.phase === "apoptosis" ? a.scale : 1.0;
+
+                    for (let j = i + 1; j < n; j++) {
+                        const b = cells[j];
+                        const weightB = b.phase === "apoptosis" ? b.scale : 1.0;
+
+                        let dx = b.x - a.x;
+                        let dy = b.y - a.y;
+                        let distSq = dx * dx + dy * dy;
+                        const maxInteract = minDistBase * 1.35;
+
+                        if (distSq > maxInteract * maxInteract) continue;
+
+                        let dist = Math.sqrt(distSq);
+                        if (dist < 0.001) {
+                            dx = rand(-0.5, 0.5);
+                            dy = rand(-0.5, 0.5);
+                            dist = Math.hypot(dx, dy);
+                        }
+
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        const idealDist = minDistBase * 0.5 * (weightA + weightB);
+
+                        if (dist < idealDist) {
+                            const overlap = idealDist - dist;
+                            const force = overlap * repulsionStiffness;
+                            a.vx -= nx * force * dt;
+                            a.vy -= ny * force * dt;
+                            b.vx += nx * force * dt;
+                            b.vy += ny * force * dt;
+                        } else if (
+                            !isPreRelax &&
+                            a.state === "mutated" &&
+                            b.state === "mutated" &&
+                            a.clusterId === b.clusterId &&
+                            a.phase !== "apoptosis" &&
+                            b.phase !== "apoptosis"
+                        ) {
+                            // Zell-Zell-Adhäsion in roten Tumor-Zellklumpen
+                            const pull = (dist - idealDist) * 1.7;
+                            a.vx += nx * pull * dt;
+                            a.vy += ny * pull * dt;
+                            b.vx -= nx * pull * dt;
+                            b.vy -= ny * pull * dt;
+                        }
+                    }
+                }
+
+                const pad = baseRadius * 0.72;
+                for (let i = 0; i < n; i++) {
+                    const c = cells[i];
+
+                    if (!isPreRelax) {
+                        c.vx += Math.cos(c.wobblePhase) * 1.9 * dt;
+                        c.vy += Math.sin(c.wobblePhase * 1.13) * 1.9 * dt;
+                    }
+
+                    if (c.x < pad) c.vx += (pad - c.x) * 18 * dt;
+                    else if (c.x > viewWidth - pad) c.vx -= (c.x - (viewWidth - pad)) * 18 * dt;
+
+                    if (c.y < pad) c.vy += (pad - c.y) * 18 * dt;
+                    else if (c.y > viewHeight - pad) c.vy -= (c.y - (viewHeight - pad)) * 18 * dt;
+
+                    c.vx *= damping;
+                    c.vy *= damping;
+
+                    const speed = Math.hypot(c.vx, c.vy);
+                    if (speed > 6.5) {
+                        c.vx = (c.vx / speed) * 6.5;
+                        c.vy = (c.vy / speed) * 6.5;
+                    }
+
+                    c.x = clamp(c.x + c.vx, 8, viewWidth - 8);
+                    c.y = clamp(c.y + c.vy, 8, viewHeight - 8);
+                }
+            }
+
+            function computeVoronoiCells() {
+                const n = cells.length;
+                const maxCellR = baseRadius * 1.48;
+                const searchRadius = maxCellR * 2.5;
+                const searchRadiusSq = searchRadius * searchRadius;
+
+                for (let i = 0; i < n; i++) {
+                    const ci = cells[i];
+                    const ri = baseRadius * (ci.phase === "apoptosis" ? ci.scale : 1.0);
+
+                    let poly = createInitialPolygon(
+                        ci.x,
+                        ci.y,
+                        maxCellR * (ci.phase === "apoptosis" ? Math.max(0.32, ci.scale) : 1.0)
+                    );
+
+                    const edgeMargin = 3;
+                    poly = clipPolygonHalfPlane(poly, edgeMargin, 0, -1, 0);
+                    poly = clipPolygonHalfPlane(poly, viewWidth - edgeMargin, 0, 1, 0);
+                    poly = clipPolygonHalfPlane(poly, 0, edgeMargin, 0, -1);
+                    poly = clipPolygonHalfPlane(poly, 0, viewHeight - edgeMargin, 0, 1);
+
+                    for (let j = 0; j < n; j++) {
+                        if (i === j) continue;
+                        const cj = cells[j];
+
+                        if (cj.phase === "apoptosis" && cj.scale < 0.30) continue;
+
+                        const dx = cj.x - ci.x;
+                        const dy = cj.y - ci.y;
+                        const distSq = dx * dx + dy * dy;
+                        if (distSq > searchRadiusSq || distSq < 0.0001) continue;
+
+                        const dist = Math.sqrt(distSq);
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+
+                        const rj = baseRadius * (cj.phase === "apoptosis" ? cj.scale : 1.0);
+                        let t = (distSq + ri * ri - rj * rj) / (2 * dist);
+                        t = clamp(t, dist * 0.22, dist * 0.78);
+
+                        const mx = ci.x + nx * t;
+                        const my = ci.y + ny * t;
+
+                        poly = clipPolygonHalfPlane(poly, mx, my, nx, ny);
+                        if (poly.length < 3) break;
+                    }
+
+                    ci.polygon = poly;
+                }
+            }
+
+            /* -----------------------------------------------------------------
+               7. HELLFELD-MIKROSKOP-RENDERING (HISTOLOGISCHE FÄRBUNG)
+               ----------------------------------------------------------------- */
+            function traceOrganicCellPath(ctx, cell, poly) {
+                const len = poly.length;
+                if (len < 3) return false;
+
+                let cx = 0;
+                let cy = 0;
+                for (let i = 0; i < len; i++) {
+                    cx += poly[i].x;
+                    cy += poly[i].y;
+                }
+                cx /= len;
+                cy /= len;
+
+                const isMutated = cell.state === "mutated";
+                // Leichter interzellulärer Spalt (0.945), damit Zellen wie gefärbtes Epithelgewebe aneinanderliegen
+                const shrinkRatio =
+                    cell.phase === "apoptosis"
+                        ? clamp(cell.scale, 0.12, 0.945)
+                        : 0.945;
+
+                const divCos = Math.cos(cell.divAngle);
+                const divSin = Math.sin(cell.divAngle);
+                const pinchStrength =
+                    cell.phase === "mitosis" && cell.phaseProgress > 0.35
+                        ? Math.sin(((cell.phaseProgress - 0.35) / 0.65) * Math.PI) * 0.24
+                        : 0;
+
+                const pts = new Array(len);
+                for (let i = 0; i < len; i++) {
+                    let relX = (poly[i].x - cx) * shrinkRatio;
+                    let relY = (poly[i].y - cy) * shrinkRatio;
+                    const ang = Math.atan2(relY, relX);
+
+                    // Organische Membran-Atmung (leicht unregelmäßiger bei mutierten Zellen)
+                    const waveAmp = isMutated ? 0.042 : 0.020;
+                    const wave =
+                        1 +
+                        Math.sin(ang * 3 + cell.membranePhase) * waveAmp +
+                        Math.sin(ang * 5 - cell.membranePhase * 0.8) * (waveAmp * 0.55);
+
+                    relX *= wave;
+                    relY *= wave;
+
+                    // Teilungsfurche während der Mitose
+                    if (pinchStrength > 0) {
+                        const alongAxis = Math.abs(relX * divCos + relY * divSin);
+                        const normAxis = clamp(alongAxis / (baseRadius * 0.75), 0, 1);
+                        const equatorFactor = 1 - pinchStrength * (1 - normAxis);
+                        relX *= equatorFactor;
+                        relY *= equatorFactor;
+                    }
+
+                    // Sanftes Membran-Blebbing bei Apoptose
+                    if (cell.phase === "apoptosis") {
+                        const bleb =
+                            1 +
+                            Math.sin(cell.phaseProgress * 16 + i * 2.1) *
+                                0.08 *
+                                Math.sin(cell.phaseProgress * Math.PI);
+                        relX *= bleb;
+                        relY *= bleb;
+                    }
+
+                    pts[i] = { x: cx + relX, y: cy + relY };
+                }
+
+                ctx.beginPath();
+                const startMidX = (pts[len - 1].x + pts[0].x) * 0.5;
+                const startMidY = (pts[len - 1].y + pts[0].y) * 0.5;
+                ctx.moveTo(startMidX, startMidY);
+
+                for (let i = 0; i < len; i++) {
+                    const next = pts[(i + 1) % len];
+                    const midX = (pts[i].x + next.x) * 0.5;
+                    const midY = (pts[i].y + next.y) * 0.5;
+                    ctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+                }
+                ctx.closePath();
+                return true;
+            }
+
+            function drawNucleus(ctx, x, y, radius, cell, isCondensed) {
+                const isMutated = cell.state === "mutated";
+                ctx.save();
+                ctx.translate(x, y);
+
+                if (isMutated) {
+                    // Mutierte Zellen: vergrößerter, leicht pleomorpher hyperchromatischer roter Zellkern
+                    ctx.beginPath();
+                    const steps = cell.nucLobes.length;
+                    for (let i = 0; i <= steps; i++) {
+                        const idx = i % steps;
+                        const ang = (idx / steps) * Math.PI * 2;
+                        const r = radius * 1.15 * cell.nucLobes[idx];
+                        const px = Math.cos(ang) * r;
+                        const py = Math.sin(ang) * r;
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+
+                    ctx.fillStyle = isCondensed ? "rgba(153, 27, 27, 0.92)" : "rgba(153, 27, 27, 0.85)";
+                    ctx.strokeStyle = "rgba(127, 29, 29, 0.78)";
+                    ctx.lineWidth = 1.15;
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Chromatin-Textur & prominente Nukleoli
+                    for (let c = 0; c < cell.chromatin.length; c++) {
+                        const ch = cell.chromatin[c];
+                        ctx.beginPath();
+                        ctx.arc(
+                            Math.cos(ch.ang) * radius * ch.dist,
+                            Math.sin(ch.ang) * radius * ch.dist,
+                            ch.size * 0.85,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fillStyle = "rgba(127, 29, 29, 0.48)";
+                        ctx.fill();
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(radius * 0.22, -radius * 0.16, radius * 0.29, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(69, 10, 10, 0.9)";
+                    ctx.fill();
+                } else {
+                    // Gesunde Zellen: klar definierter oval-runder dunkelblauer Zellkern (Hämatoxylin/Methylenblau)
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, radius * 1.05, radius * 0.94, cell.wobblePhase * 0.08, 0, Math.PI * 2);
+                    ctx.fillStyle = isCondensed ? "rgba(30, 58, 138, 0.88)" : "rgba(30, 58, 138, 0.78)";
+                    ctx.strokeStyle = "rgba(23, 37, 84, 0.65)";
+                    ctx.lineWidth = 1.05;
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Feine Chromatin-Granula
+                    for (let c = 0; c < cell.chromatin.length; c++) {
+                        const ch = cell.chromatin[c];
+                        ctx.beginPath();
+                        ctx.arc(
+                            Math.cos(ch.ang) * radius * ch.dist,
+                            Math.sin(ch.ang) * radius * ch.dist,
+                            ch.size * 0.8,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fillStyle = "rgba(23, 37, 84, 0.36)";
+                        ctx.fill();
+                    }
+
+                    // Kleiner dunkler Nukleolus
+                    ctx.beginPath();
+                    ctx.arc(-radius * 0.18, radius * 0.15, radius * 0.22, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            function renderBrightfieldMicroscope() {
+                ctx.save();
+                ctx.scale(dpr, dpr);
+
+                // 1. Hellfeld-Objektträger-Hintergrund: klares Cremeweiß (#fafbfc) mit sanftem Kondensor-Gradienten (#e2e8f0)
+                const cx = viewWidth * 0.5;
+                const cy = viewHeight * 0.5;
+                const maxR = Math.hypot(cx, cy);
+                const bgGrad = ctx.createRadialGradient(cx, cy, maxR * 0.15, cx, cy, maxR);
+                bgGrad.addColorStop(0, "#fafbfc");
+                bgGrad.addColorStop(0.72, "#f3f6fa");
+                bgGrad.addColorStop(1, "#e2e8f0");
+
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, viewWidth, viewHeight);
+
+                // 2. Lebende Epithelzellschicht zeichnen
+                for (let i = 0; i < cells.length; i++) {
+                    const c = cells[i];
+                    if (!c.polygon || c.polygon.length < 3 || c.alpha <= 0.01) continue;
+
+                    ctx.save();
+                    ctx.globalAlpha = c.alpha;
+
+                    const isMutated = c.state === "mutated";
+                    const isHovered = c.id === hoveredCellId && !isMutated && c.phase !== "apoptosis";
+
+                    if (traceOrganicCellPath(ctx, c, c.polygon)) {
+                        const gradR = baseRadius * 1.18;
+                        const grad = ctx.createRadialGradient(
+                            c.x,
+                            c.y,
+                            gradR * 0.08,
+                            c.x,
+                            c.y,
+                            gradR
+                        );
+
+                        if (isMutated) {
+                            // Histologische Karmin-/Karmesinrot-Färbung
+                            grad.addColorStop(0, "rgba(239, 68, 68, 0.26)");
+                            grad.addColorStop(1, "rgba(220, 38, 38, 0.38)");
+                        } else {
+                            // Histologische Methylenblau-/Hämatoxylin-Färbung
+                            grad.addColorStop(0, "rgba(59, 130, 246, 0.20)");
+                            grad.addColorStop(1, "rgba(37, 99, 235, 0.30)");
+                        }
+
+                        ctx.fillStyle = grad;
+                        ctx.fill();
+
+                        // Feiner optischer Lichtsaum an der Zellmembran (Hellfeld-Brechung)
+                        ctx.strokeStyle = isMutated
+                            ? "rgba(185, 28, 28, 0.62)"
+                            : isHovered
+                            ? "rgba(29, 78, 216, 0.88)"
+                            : "rgba(29, 78, 216, 0.48)";
+                        ctx.lineWidth = isHovered ? 2.2 : 1.35;
+                        ctx.stroke();
+
+                        // Clip auf Zellinneres für Zytoplasma-Granula & Zellkern
+                        ctx.clip();
+
+                        // Subtile Zytoplasma-Granula
+                        const orgSpan = baseRadius * 0.72 * c.scale;
+                        for (let k = 0; k < c.organelles.length; k++) {
+                            const org = c.organelles[k];
+                            const ox = c.x + Math.cos(org.ang + c.wobblePhase * 0.12) * orgSpan * org.dist;
+                            const oy = c.y + Math.sin(org.ang + c.wobblePhase * 0.12) * orgSpan * org.dist;
+                            ctx.beginPath();
+                            ctx.arc(ox, oy, org.size * c.scale, 0, Math.PI * 2);
+                            ctx.fillStyle = isMutated
+                                ? `rgba(153, 27, 27, ${org.alpha})`
+                                : `rgba(30, 64, 175, ${org.alpha * 0.85})`;
+                            ctx.fill();
+                        }
+
+                        // Zellkern (Nukleus) – bei Mitose zwei auseinanderweichende Tochterkerne
+                        const nucRadius = baseRadius * 0.27 * c.scale;
+                        if (c.phase === "mitosis") {
+                            const sep = Math.max(0, (c.phaseProgress - 0.32) / 0.68) * baseRadius * 0.35;
+                            const dx = Math.cos(c.divAngle) * sep;
+                            const dy = Math.sin(c.divAngle) * sep;
+
+                            if (sep > 1.2) {
+                                drawNucleus(ctx, c.x - dx, c.y - dy, nucRadius * 0.85, c, true);
+                                drawNucleus(ctx, c.x + dx, c.y + dy, nucRadius * 0.85, c, true);
+                            } else {
+                                drawNucleus(ctx, c.x, c.y, nucRadius * 1.12, c, true);
+                            }
+                        } else {
+                            drawNucleus(ctx, c.x, c.y, nucRadius, c, false);
+                        }
+                    }
+
+                    ctx.restore();
+                }
+
+                // 3. Dezente rote Klick-Ripples beim Auslösen einer Mutation
+                for (let i = 0; i < clickRipples.length; i++) {
+                    const r = clickRipples[i];
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(220, 38, 38, ${Math.max(0, r.alpha)})`;
+                    ctx.lineWidth = 2.0;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            }
+
+            /* -----------------------------------------------------------------
+               8. LIVE-ZELLZAHLEN & SZENARIO-WECHSEL
+               ----------------------------------------------------------------- */
+            function updateCountersUI() {
+                let healthy = 0;
+                let mutated = 0;
+                for (let i = 0; i < cells.length; i++) {
+                    if (cells[i].alpha < 0.25) continue;
+                    if (cells[i].state === "healthy") healthy++;
+                    else mutated++;
+                }
+
+                healthyCountEl.textContent = healthy;
+                mutatedCountEl.textContent = mutated;
+            }
+
+            function selectVariant(variantId) {
+                currentVariant = variantId;
+                const isCritical = variantId === 4;
+
+                document.querySelectorAll(".variant-btn").forEach((btn) => {
+                    const v = Number(btn.dataset.variant);
+                    btn.classList.toggle("active", v === variantId);
+                    btn.classList.toggle("critical", v === variantId && isCritical);
+                });
+
+                scenarioBannerEl.classList.toggle("critical", isCritical);
+                scenarioBannerTextEl.textContent = SCENARIO_TEXTS[variantId] || "";
+
+                initTissue();
+            }
+
+            /* -----------------------------------------------------------------
+               9. CANVAS-GRÖSSENANPASSUNG & INTERAKTIONEN
+               ----------------------------------------------------------------- */
+            function resizeCanvas() {
+                const container = tissueCanvas.parentElement;
+                const rect = container.getBoundingClientRect();
+                const prevW = viewWidth;
+                const prevH = viewHeight;
+
+                viewWidth = Math.max(300, Math.floor(rect.width));
+                viewHeight = Math.max(260, Math.floor(rect.height));
+                dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+                tissueCanvas.width = viewWidth * dpr;
+                tissueCanvas.height = viewHeight * dpr;
+
+                if (cells.length > 0 && prevW > 0 && prevH > 0) {
+                    const sx = viewWidth / prevW;
+                    const sy = viewHeight / prevH;
+                    for (let i = 0; i < cells.length; i++) {
+                        cells[i].x = clamp(cells[i].x * sx, 12, viewWidth - 12);
+                        cells[i].y = clamp(cells[i].y * sy, 12, viewHeight - 12);
+                    }
+                    computeVoronoiCells();
+                }
+                renderBrightfieldMicroscope();
+            }
+
+            document.getElementById("variantSelector").addEventListener("click", (e) => {
+                const btn = e.target.closest(".variant-btn");
+                if (!btn) return;
+                const v = Number(btn.dataset.variant);
+                if (v >= 1 && v <= 4) {
+                    selectVariant(v);
+                }
+            });
+
+            btnPlayPause.addEventListener("click", () => {
+                isRunning = !isRunning;
+                labelPlayPause.textContent = isRunning ? "Pause" : "Fortsetzen";
+                iconPlayPause.innerHTML = isRunning
+                    ? '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>'
+                    : '<polygon points="6,4 20,12 6,20"/>';
+            });
+
+            btnReset.addEventListener("click", () => {
+                initTissue();
+                if (!isRunning) {
+                    renderBrightfieldMicroscope();
+                }
+            });
+
+            tissueCanvas.addEventListener("mousemove", (e) => {
+                const rect = tissueCanvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+
+                let closestId = null;
+                let bestDist = baseRadius * 1.25;
+                for (let i = 0; i < cells.length; i++) {
+                    const c = cells[i];
+                    if (c.state !== "healthy" || c.phase === "apoptosis") continue;
+                    const d = Math.hypot(c.x - mx, c.y - my);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        closestId = c.id;
+                    }
+                }
+                hoveredCellId = closestId;
+            });
+
+            tissueCanvas.addEventListener("mouseleave", () => {
+                hoveredCellId = null;
+            });
+
+            tissueCanvas.addEventListener("click", (e) => {
+                const rect = tissueCanvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+
+                let target = null;
+                let bestDist = baseRadius * 1.45;
+                for (let i = 0; i < cells.length; i++) {
+                    const c = cells[i];
+                    if (c.state === "healthy" && c.phase !== "apoptosis") {
+                        const d = Math.hypot(c.x - mx, c.y - my);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            target = c;
+                        }
+                    }
+                }
+
+                if (target && mutateCellOnClick(target, mx, my)) {
+                    updateCountersUI();
+                    if (!isRunning) {
+                        renderBrightfieldMicroscope();
+                    }
+                }
+            });
+
+            /* -----------------------------------------------------------------
+               10. HAUPT-ANIMATIONSSCHLEIFE (60 FPS)
+               ----------------------------------------------------------------- */
+            let lastFrameTime = performance.now();
+
+            function animationLoop(now) {
+                const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+                lastFrameTime = now;
+
+                if (isRunning) {
+                    updateBiology(dt);
+
+                    stepPhysics(dt * 0.5, false);
+                    stepPhysics(dt * 0.5, false);
+
+                    computeVoronoiCells();
+
+                    uiUpdateTimer += dt;
+                    if (uiUpdateTimer >= 0.15) {
+                        uiUpdateTimer = 0;
+                        updateCountersUI();
+                    }
+                }
+
+                renderBrightfieldMicroscope();
+                requestAnimationFrame(animationLoop);
+            }
+
+            window.addEventListener("resize", resizeCanvas);
+
+            window.onload = function () {
+                resizeCanvas();
+                selectVariant(1);
+                lastFrameTime = performance.now();
+                requestAnimationFrame(animationLoop);
+            };
+        })();
+    </script>
+</body>
+</html>
